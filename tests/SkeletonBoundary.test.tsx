@@ -59,16 +59,13 @@ describe('SkeletonBoundary', () => {
     expect(screen.queryByText('Loading')).not.toBeInTheDocument()
   })
 
-  it('renders a wrapper div in development mode', () => {
+  it('renders a wrapper div in development/test mode', () => {
     const { container } = render(
       <SkeletonBoundary fallback={<div />}>
         <div>child</div>
       </SkeletonBoundary>,
     )
-    // NODE_ENV is 'test' in jest, which is treated same as development for this check
-    // The wrapper div is only added when NODE_ENV === 'development'
-    // In test env (not 'development'), no wrapper is added
-    expect(container.firstChild).toBeDefined()
+    expect(container.querySelector('[data-rss-boundary]')).toBeInTheDocument()
   })
 
   it('accepts a custom clsThreshold prop without throwing', () => {
@@ -79,5 +76,84 @@ describe('SkeletonBoundary', () => {
         </SkeletonBoundary>,
       ),
     ).not.toThrow()
+  })
+
+  describe('CLS warning logs', () => {
+    let originalConsoleWarn: typeof console.warn
+    let originalResizeObserver: typeof global.ResizeObserver
+    let resizeCallback: (() => void) | undefined
+
+    beforeEach(() => {
+      originalConsoleWarn = console.warn
+      console.warn = jest.fn()
+
+      originalResizeObserver = global.ResizeObserver
+      global.ResizeObserver = class {
+        constructor(cb: () => void) {
+          resizeCallback = cb
+        }
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      } as any
+    })
+
+    afterEach(() => {
+      console.warn = originalConsoleWarn
+      global.ResizeObserver = originalResizeObserver
+      resizeCallback = undefined
+    })
+
+    it('warns when a layout shift exceeding the threshold is detected', async () => {
+      let resolve!: (v: string) => void
+      const promise = new Promise<string>((r) => { resolve = r })
+      const resource = createResource(promise)
+
+      let elementHeight = 100
+      const originalGetBoundingClientRect = Element.prototype.getBoundingClientRect
+      Element.prototype.getBoundingClientRect = function () {
+        return {
+          width: 100,
+          height: elementHeight,
+          top: 0,
+          right: 100,
+          bottom: elementHeight,
+          left: 0,
+          x: 0,
+          y: 0,
+          toJSON() {}
+        } as DOMRect
+      }
+
+      try {
+        const { container } = render(
+          <SkeletonBoundary fallback={<div data-testid="fallback" />}>
+            <AsyncText resource={resource} />
+          </SkeletonBoundary>,
+        )
+
+        expect(container.querySelector('[data-testid="fallback"]')).toBeInTheDocument()
+
+        elementHeight = 200
+
+        await act(async () => {
+          resolve('Resolved text')
+          await promise
+        })
+
+        // Also trigger resize observer callback if it was set
+        act(() => {
+          if (resizeCallback) {
+            resizeCallback()
+          }
+        })
+
+        expect(console.warn).toHaveBeenCalledWith(
+          expect.stringContaining('[react-streaming-skeletons] CLS risk detected!')
+        )
+      } finally {
+        Element.prototype.getBoundingClientRect = originalGetBoundingClientRect
+      }
+    })
   })
 })

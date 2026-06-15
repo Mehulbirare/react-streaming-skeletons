@@ -13,12 +13,12 @@ import type { ComponentType, FC, ReactElement } from 'react'
  */
 export function defineSkeleton<P>(
   Component: ComponentType<P>,
-  render: () => ReactElement,
-): FC {
+  render: (props: Partial<P>) => ReactElement,
+): FC<Partial<P>> {
   const displayName = Component.displayName ?? Component.name ?? 'Component'
 
-  function SkeletonComponent() {
-    return render()
+  function SkeletonComponent(props: Partial<P>) {
+    return render(props)
   }
 
   SkeletonComponent.displayName = `${displayName}Skeleton`

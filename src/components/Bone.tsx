@@ -1,7 +1,8 @@
 'use client'
 
-import React, { useEffect, Fragment } from 'react'
-import { ensureStylesInjected } from '../utils/injectStyles'
+import React, { useEffect, Fragment, useContext } from 'react'
+import { ensureStylesInjected, SHIMMER_CSS, CSS_ID } from '../utils/injectStyles'
+import { SkeletonContext } from './SkeletonProvider'
 import type { BoneProps } from '../types'
 
 export function Bone({
@@ -18,6 +19,8 @@ export function Bone({
     ensureStylesInjected()
   }, [])
 
+  const context = useContext(SkeletonContext)
+
   const borderRadius: string | undefined =
     circle ? '50%' : rounded ? '9999px' : undefined
 
@@ -29,28 +32,43 @@ export function Bone({
     ...style,
   }
 
+  const styleTag =
+    context === undefined ? (
+      <style
+        {...({
+          href: 'react-streaming-skeletons-style',
+          precedence: 'high',
+        } as any)}
+        id={CSS_ID}
+        dangerouslySetInnerHTML={{ __html: SHIMMER_CSS }}
+      />
+    ) : null
+
   if (count <= 1) {
     return (
-      <span
-        data-rss-bone=""
-        className={className}
-        style={baseStyle}
-        aria-hidden="true"
-      />
+      <Fragment>
+        {styleTag}
+        <span
+          data-rss-bone=""
+          data-rss-inline={inline ? '' : undefined}
+          className={className}
+          style={baseStyle}
+          aria-hidden="true"
+        />
+      </Fragment>
     )
   }
 
   return (
     <Fragment>
+      {styleTag}
       {Array.from({ length: count }, (_, i) => (
         <span
           key={i}
           data-rss-bone=""
+          data-rss-inline={inline ? '' : undefined}
           className={className}
-          style={{
-            ...baseStyle,
-            marginBottom: i < count - 1 ? '0.5em' : undefined,
-          }}
+          style={baseStyle}
           aria-hidden="true"
         />
       ))}

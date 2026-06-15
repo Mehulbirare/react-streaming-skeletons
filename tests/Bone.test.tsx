@@ -1,6 +1,7 @@
 import React from 'react'
 import { render, screen } from '@testing-library/react'
 import { Bone } from '../src/components/Bone'
+import { SkeletonProvider } from '../src/components/SkeletonProvider'
 
 describe('Bone', () => {
   it('renders a single bone element', () => {
@@ -76,5 +77,44 @@ describe('Bone', () => {
     const bone = container.querySelector('[data-rss-bone]') as HTMLElement
     expect(bone.style.width).toBe('100%')
     expect(bone.style.height).toBe('1em')
+  })
+
+  it('renders the style tag when used without a provider', () => {
+    const { container } = render(<Bone />)
+    const styleTag = container.querySelector('style#rss-styles')
+    expect(styleTag).toBeInTheDocument()
+  })
+
+  it('does not render the style tag when wrapped in a SkeletonProvider', () => {
+    const { container } = render(
+      <SkeletonProvider>
+        <Bone />
+      </SkeletonProvider>,
+    )
+    // There will be one style tag from the SkeletonProvider, but none from the Bone.
+    // Let's assert that there is only one style tag in total.
+    const styleTags = container.querySelectorAll('style#rss-styles')
+    expect(styleTags).toHaveLength(1)
+  })
+
+  it('sets data-rss-inline attribute when inline is true', () => {
+    const { container } = render(<Bone inline />)
+    const bone = container.querySelector('[data-rss-bone]')
+    expect(bone).toHaveAttribute('data-rss-inline', '')
+  })
+
+  it('does not set data-rss-inline attribute when inline is false', () => {
+    const { container } = render(<Bone />)
+    const bone = container.querySelector('[data-rss-bone]')
+    expect(bone).not.toHaveAttribute('data-rss-inline')
+  })
+
+  it('does not apply hardcoded marginBottom on multiple bones', () => {
+    const { container } = render(<Bone count={3} />)
+    const bones = container.querySelectorAll('[data-rss-bone]')
+    bones.forEach((bone) => {
+      const htmlBone = bone as HTMLElement
+      expect(htmlBone.style.marginBottom).toBe('')
+    })
   })
 })

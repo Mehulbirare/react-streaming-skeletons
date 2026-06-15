@@ -1,6 +1,6 @@
 {
   "name": "react-streaming-skeletons",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Zero-layout-shift skeleton components for React Suspense streaming and Next.js App Router",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",

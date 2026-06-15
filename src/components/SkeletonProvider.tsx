@@ -1,6 +1,7 @@
 'use client'
 
 import React, { createContext, useContext } from 'react'
+import { SHIMMER_CSS, CSS_ID } from '../utils/injectStyles'
 import type { SkeletonTheme, SkeletonProviderProps } from '../types'
 
 export const defaultTheme: SkeletonTheme = {
@@ -12,10 +13,11 @@ export const defaultTheme: SkeletonTheme = {
   enableAnimation: true,
 }
 
-const SkeletonContext = createContext<SkeletonTheme>(defaultTheme)
+export const SkeletonContext = createContext<SkeletonTheme | undefined>(undefined)
 
 export function useSkeletonTheme(): SkeletonTheme {
-  return useContext(SkeletonContext)
+  const theme = useContext(SkeletonContext)
+  return theme ?? defaultTheme
 }
 
 export function SkeletonProvider({ theme, children }: SkeletonProviderProps) {
@@ -23,6 +25,14 @@ export function SkeletonProvider({ theme, children }: SkeletonProviderProps) {
 
   return (
     <SkeletonContext.Provider value={merged}>
+      <style
+        {...({
+          href: 'react-streaming-skeletons-style',
+          precedence: 'high',
+        } as any)}
+        id={CSS_ID}
+        dangerouslySetInnerHTML={{ __html: SHIMMER_CSS }}
+      />
       <div
         data-rss-provider=""
         data-rss-direction={merged.animationDirection}
@@ -32,6 +42,10 @@ export function SkeletonProvider({ theme, children }: SkeletonProviderProps) {
             '--rss-color': merged.color,
             '--rss-highlight': merged.highlight,
             '--rss-duration': `${merged.duration}s`,
+            '--rss-border-radius':
+              typeof merged.borderRadius === 'number'
+                ? `${merged.borderRadius}px`
+                : merged.borderRadius,
           } as React.CSSProperties
         }
       >

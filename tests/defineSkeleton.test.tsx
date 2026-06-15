@@ -56,4 +56,13 @@ describe('defineSkeleton', () => {
 
     expect(screen.getByText('Alice')).toBeInTheDocument()
   })
+
+  it('forwards props to the skeleton component', () => {
+    const UserCardSkeleton = defineSkeleton(UserCard, ({ name }) => (
+      <div data-testid="skeleton">Loading card for {name}...</div>
+    ))
+
+    render(<UserCardSkeleton name="Bob" />)
+    expect(screen.getByTestId('skeleton').textContent).toBe('Loading card for Bob...')
+  })
 })

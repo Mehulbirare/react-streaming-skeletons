@@ -3,7 +3,7 @@
 import React, { Suspense, useRef, useEffect } from 'react'
 import type { SkeletonBoundaryProps } from '../types'
 
-const isDev = process.env.NODE_ENV === 'development'
+const isDev = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test'
 
 function useCLSDetection(enabled: boolean, threshold: number) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -11,15 +11,34 @@ function useCLSDetection(enabled: boolean, threshold: number) {
   const warnedRef = useRef(false)
 
   useEffect(() => {
-    if (!enabled || !containerRef.current) return
+    if (!enabled || !containerRef.current || typeof ResizeObserver === 'undefined') return
 
     const el = containerRef.current
-    firstHeightRef.current = el.getBoundingClientRect().height
 
-    const observer = new ResizeObserver(() => {
+    // Helper to calculate height encompassing all child DOM elements (handles display: contents)
+    const getChildrenHeight = (): number => {
+      const children = Array.from(el.children)
+      if (children.length === 0) return 0
+
+      let minTop = Infinity
+      let maxBottom = -Infinity
+
+      for (const child of children) {
+        const rect = child.getBoundingClientRect()
+        if (rect.width === 0 && rect.height === 0) continue
+        if (rect.top < minTop) minTop = rect.top
+        if (rect.bottom > maxBottom) maxBottom = rect.bottom
+      }
+
+      return minTop === Infinity ? 0 : maxBottom - minTop
+    }
+
+    firstHeightRef.current = getChildrenHeight()
+
+    const checkHeight = () => {
       if (warnedRef.current) return
 
-      const current = el.getBoundingClientRect().height
+      const current = getChildrenHeight()
       const baseline = firstHeightRef.current
 
       if (baseline === 0 || current === baseline) return
@@ -35,10 +54,48 @@ function useCLSDetection(enabled: boolean, threshold: number) {
             `  Fix: match your <Bone height={...}> values to the resolved content dimensions.`,
         )
       }
+    }
+
+    const resizeObserver = new ResizeObserver(() => {
+      checkHeight()
     })
 
-    observer.observe(el)
-    return () => observer.disconnect()
+    const observedElements = new Set<Element>()
+    const updateObservedElements = () => {
+      const currentChildren = Array.from(el.children)
+
+      for (const child of observedElements) {
+        if (!currentChildren.includes(child)) {
+          resizeObserver.unobserve(child)
+          observedElements.delete(child)
+        }
+      }
+
+      for (const child of currentChildren) {
+        if (!observedElements.has(child)) {
+          resizeObserver.observe(child)
+          observedElements.add(child)
+        }
+      }
+
+      if (firstHeightRef.current === 0) {
+        firstHeightRef.current = getChildrenHeight()
+      }
+    }
+
+    updateObservedElements()
+
+    const mutationObserver = new MutationObserver(() => {
+      updateObservedElements()
+      checkHeight()
+    })
+
+    mutationObserver.observe(el, { childList: true })
+
+    return () => {
+      resizeObserver.disconnect()
+      mutationObserver.disconnect()
+    }
   }, [enabled, threshold])
 
   return containerRef

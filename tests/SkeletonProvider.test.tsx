@@ -39,13 +39,25 @@ describe('SkeletonProvider', () => {
 
   it('sets CSS custom properties on the wrapper div', () => {
     const { container } = render(
-      <SkeletonProvider theme={{ color: '#aabbcc', duration: 3 }}>
+      <SkeletonProvider theme={{ color: '#aabbcc', duration: 3, borderRadius: 8 }}>
         <div />
       </SkeletonProvider>,
     )
     const wrapper = container.querySelector('[data-rss-provider]') as HTMLElement
     expect(wrapper.style.getPropertyValue('--rss-color')).toBe('#aabbcc')
     expect(wrapper.style.getPropertyValue('--rss-duration')).toBe('3s')
+    expect(wrapper.style.getPropertyValue('--rss-border-radius')).toBe('8px')
+  })
+
+  it('renders the style tag for SSR styling support', () => {
+    const { container } = render(
+      <SkeletonProvider>
+        <div />
+      </SkeletonProvider>,
+    )
+    const styleTag = container.querySelector('style#rss-styles')
+    expect(styleTag).toBeInTheDocument()
+    expect(styleTag?.textContent).toContain('[data-rss-bone]')
   })
 
   it('sets data-rss-direction attribute', () => {

@@ -170,18 +170,18 @@ Theming is implemented with CSS custom properties (`--rss-color`, `--rss-highlig
 
 ### `defineSkeleton(Component, renderFn)`
 
-Links a skeleton to its real component so they stay co-located in the same file.
+Links a skeleton to its real component so they stay co-located in the same file. The render function receives any incoming props passed to the skeleton, allowing you to configure the skeleton based on the same props (like size, layout, etc.) to match the real component structure.
 
 ```tsx
-export const UserCardSkeleton = defineSkeleton(UserCard, () => (
-  <div>
+export const UserCardSkeleton = defineSkeleton(UserCard, (props) => (
+  <div className={props.layout === 'horizontal' ? 'flex' : 'block'}>
     <Bone circle width={40} height={40} />
     <Bone width="60%" height={20} />
   </div>
 ))
 ```
 
-The returned component gets a `displayName` of `"<ComponentName>Skeleton"`, which makes it easy to identify in React DevTools.
+The returned component gets a `displayName` of `"<ComponentName>Skeleton"` and supports full TS generic typing for the component's props.
 
 ---
 
@@ -215,7 +215,9 @@ Wrap `SkeletonProvider` inside your theme toggle to switch bone colours:
 
 ## Accessibility
 
-All `<Bone>` elements render with `aria-hidden="true"` so they are invisible to screen readers. Users who prefer reduced motion should disable the shimmer animation:
+All `<Bone>` elements render with `aria-hidden="true"` so they are invisible to screen readers. 
+
+**Automatic Reduced Motion:** Shimmer animations are automatically disabled via a CSS media query if the user has configured `prefers-reduced-motion: reduce` in their operating system settings. Alternatively, you can explicitly disable animations at the theme level:
 
 ```tsx
 const prefersReduced =
@@ -229,7 +231,9 @@ const prefersReduced =
 
 ## How the CLS Warning Works
 
-In development, every `<SkeletonBoundary>` observes its container with `ResizeObserver`. The first measured height is treated as the skeleton height. When Suspense resolves and the container resizes, the new height is compared against the baseline. If the shift exceeds `clsThreshold` (default 10%), you'll see:
+In development, every `<SkeletonBoundary>` wraps the `<Suspense>` tree with a container styled as `display: contents;` (which preserves flexbox, grid, and inline layouts perfectly, preventing styling divergence between development and production). 
+
+Because `display: contents;` has no layout box, it observes the direct child elements inside the boundary using `MutationObserver` and `ResizeObserver`. The initial total height of the fallback children is treated as the skeleton height baseline. When Suspense resolves and the container children update, the new height is compared against the baseline. If the shift exceeds `clsThreshold` (default 10%), you'll see:
 
 ```
 [react-streaming-skeletons] CLS risk detected!
@@ -238,6 +242,15 @@ In development, every `<SkeletonBoundary>` observes its container with `ResizeOb
   Shift           : 775% (threshold: 10%)
   Fix: match your <Bone height={...}> values to the resolved content dimensions.
 ```
+
+## What's New in v0.2.0
+
+- **Fixed `borderRadius` Theme Option**: Customized border-radius values in `SkeletonProvider` are now successfully passed as `--rss-border-radius` and applied to all Bones.
+- **SSR Streaming Support (Zero FOUC)**: Skeletons are now styled immediately on initial Server-Side Rendering (SSR) HTML streaming, avoiding flash of unstyled content (FOUC).
+- **Layout-Safe Boundaries**: `SkeletonBoundary` wraps elements using `display: contents;` in development mode, ensuring flex, grid, and inline layouts don't break.
+- **Props Forwarding in `defineSkeleton`**: Skeletons co-located with `defineSkeleton` can now accept and dynamically respond to components' props.
+- **RTL Support for Spacing**: Horizontal bone spacing respects reading direction settings (supports RTL animation and margins).
+- **Automatic Reduced Motion**: Built-in CSS fallback automatically disables shimmers when the user prefers reduced motion.
 
 ## Bundle Size
 
